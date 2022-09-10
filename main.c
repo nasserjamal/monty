@@ -1,77 +1,86 @@
+#define  _POSIX_C_SOURCE 200809L
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include "monty.h"
 
+void file_error(char *argv);
+void error_usage(void);
+int status = 0;		/* global var declaration */
+
 /**
- * main - The entry to the interprator program
+ * main - entry point
+ * @argv: list of arguments passed to our program
+ * @argc: amount of args
  *
- * @argc: Argument count
- * @argv: List of arguments
- * Return: 0 if success 1 otherwise
+ * Return: nothing
  */
 int main(int argc, char **argv)
 {
-int fd;
+	FILE *file;
+	size_t buf_len = 0;
+	char *buffer = NULL;
+	char *str = NULL;
+	stack_t *stack = NULL;
+	unsigned int line_cnt = 1;
 
-fd = openFile(argc, argv);
-return (fd);
-
-}
-
-/**
- * openFile - Tries to open file given as an argument
- *
- * @argc: Argument count
- * @argv: List of arguments
- * Return: The file descriptor
- */
-int openFile(int argc, char **argv)
-{
-	int fd;
-	char *errMessage;
-
+	global.data_struct = 1;  /* struct defined in monty.h L58*/
 	if (argc != 2)
-	{
-		printError("USAGE: monty file");
-		exit(EXIT_FAILURE);
-	}
+		error_usage(); /* def in line 82 */
 
-	fd = open(argv[1], O_RDONLY);
+	file = fopen(argv[1], "r");
 
-	if (fd == -1)
+	if (!file)
+		file_error(argv[1]);  /* def in line 68 */
+
+	while ((getline(&buffer, &buf_len, file)) != (-1))
 	{
-		errMessage = concatStrings("Error: Can't open file ", argv[1]);
-		printError(errMessage);
-		free(errMessage);
-		exit(EXIT_FAILURE);
+		if (status)
+			break;
+		if (*buffer == '\n')
+		{
+			line_cnt++;
+			continue;
+		}
+		str = strtok(buffer, " \t\n");
+		if (!str || *str == '#')
+		{
+			line_cnt++;
+			continue;
+		}
+		global.argument = strtok(NULL, " \t\n");
+		opcode(&stack, str, line_cnt);
+		line_cnt++;
 	}
-	write(STDOUT_FILENO, argv[0], sizeof(argv[1]));
-	return (1);
+	free(buffer);
+	free_stack(stack);
+	fclose(file);
+	exit(EXIT_SUCCESS);
 }
 
-
 /**
- * printError - Prints errors to stderr and exits
+ * file_error - prints file error message and exits
+ * @argv: argv given by main()
  *
- * @msg: The message to be printed
+ * Desc: print msg if  not possible to open the file
+ * Return: nothing
  */
-void printError(char msg[])
+void file_error(char *argv)
 {
-	write(STDERR_FILENO, msg, strlen(msg));
-	write(STDERR_FILENO, "\n", 1);
+	fprintf(stderr, "Error: Can't open file %s\n", argv);
+	exit(EXIT_FAILURE);
 }
 
-
 /**
- * concatStrings - Concatinates two strings
+ * error_usage - prints usage message and exits
  *
- * @str1: First string
- * @str2: Second string
- * Return: Concatinated string
+ * Desc: if user does not give any file or more than
+ *       one argument to your program
+ *
+ * Return: nothing
  */
-char *concatStrings(char *str1, char *str2)
+void error_usage(void)
 {
-	char *newString = malloc(strlen(str1) + strlen(str2));
-
-	strcpy(newString, str1);
-	strcat(newString, str2);
-	return (newString);
+	fprintf(stderr, "USAGE: monty file\n");
+	exit(EXIT_FAILURE);
 }
